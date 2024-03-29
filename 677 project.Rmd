@@ -1,0 +1,174 @@
+---
+title: "MA 677 Midterm Project"
+output:
+  html_document: default
+  pdf_document: default
+date: "2024-03-29"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Order statistics - Required
+# Uniform Distribution:
+For a uniform distribution U(0, 1), the probability density function (pdf) of the i-th order statistic X_(i) is given by the beta distribution with parameters alpha = i and beta = n - i + 1.
+
+# Exponential Distribution:
+For an exponential distribution with rate λ, the pdf of the i-th order statistic X_(i) is more complex and involves the Gamma function. However, the minimum value (first order statistic) from an exponential distribution is again an exponential distribution with the same rate λ.
+
+# Normal Distribution:
+For a normal distribution, order statistics do not have closed-form expressions for their distributions.However, their expected values can be approximated using the quantiles of the standard normal distribution.
+
+```{r}
+# Parameters for the simulations and beta distributions
+n <- 1000  # Number of simulations
+sample_size <- 100  # Size of each sample
+labels <- c('Min', '25th Percentile', 'Median', '75th Percentile', 'Max')
+beta_params <- list(c(1, sample_size), c(26, 75), c(51, 50), c(76, 25), c(sample_size, 1))
+
+# Generate and plot the order statistics for the uniform distribution
+par(mfrow=c(3,2), mar=c(4,4,2,1))
+for (i in 1:5) {
+  # Generate samples
+  samples <- matrix(runif(n * sample_size), nrow = n)
+  samples <- t(apply(samples, 1, sort))
+  order_stat <- samples[,c(1, sample_size/4, sample_size/2, 3*sample_size/4, sample_size)]
+  
+  # Plotting
+  hist(order_stat[,i], freq=FALSE, main=paste(labels[i], "Order Statistic (Uniform)"),
+       xlab="Value", ylab="Density", col="skyblue")
+  curve(dbeta(x, beta_params[[i]][1], beta_params[[i]][2]), 
+        add=TRUE, col="red", lwd=2)
+}
+
+# Generate and plot the order statistics for the exponential distribution
+lambda_param <- 1  # rate parameter for the exponential distribution
+for (i in 1:5) {
+  samples <- matrix(rexp(n * sample_size, rate = lambda_param), nrow = n)
+  samples <- t(apply(samples, 1, sort))
+  order_stat <- samples[,c(1, sample_size/4, sample_size/2, 3*sample_size/4, sample_size)]
+  
+  hist(order_stat[,i], freq=FALSE, main=paste(labels[i], "Order Statistic (Exponential)"),
+       xlab="Value", ylab="Frequency", col="salmon")
+}
+
+# Generate and plot the order statistics for the normal distribution
+mu <- 0  # mean
+sigma <- 1  # standard deviation
+for (i in 1:5) {
+  samples <- matrix(rnorm(n * sample_size, mean = mu, sd = sigma), nrow = n)
+  samples <- t(apply(samples, 1, sort))
+  order_stat <- samples[,c(1, sample_size/4, sample_size/2, 3*sample_size/4, sample_size)]
+  
+  hist(order_stat[,i], freq=FALSE, main=paste(labels[i], "Order Statistic (Normal)"),
+       xlab="Value", ylab="Frequency", col="lightgreen")
+}
+
+# Reset plotting layout
+par(mfrow=c(1,1))
+
+
+```
+
+The histograms provided display the distribution of the order statistics from simulated samples of uniform, exponential, and normal distributions.
+
+For the uniform distribution, the histograms for the minimum and maximum order statistics are skewed towards the edges of the interval [0, 1], as expected, since these are the extreme values of the distribution. The histogram for the median is centered around 0.5, which is also expected as the median of a uniform distribution on [0, 1] should be 0.5. The 25th and 75th percentiles appear to be centered around 0.25 and 0.75, respectively. The smooth curves overlaid on the histograms are the theoretical Beta distributions that correspond to each order statistic. Their close alignment with the empirical histograms validates the expected behavior of the uniform distribution's order statistics.
+
+For the exponential distribution, we observe that the minimum order statistic's histogram is heavily weighted towards 0, which is consistent with the nature of the exponential distribution where there is a high probability of lower values. As we move to higher order statistics, the data spreads out more. 
+
+Finally, for the normal distribution, the histograms show that as we go from the minimum to the maximum order statistic, the data spreads out across a larger range of values. The symmetry around the mean is maintained for median and percentiles, which is typical of normal distribution. However, the minimum and maximum are more spread out because they are the extreme values from the samples.
+
+
+## Markov chains
+
+# Application
+
+Markov chains provide a mathematical framework for modeling systems that transition from one state to another in a chain-like fashion. In manufacturing, this concept is particularly useful for modeling the state of machines over time, production processes, or supply chain logistics.
+
+# Markov chain
+
+A Markov chain consists of various states and the probabilities of transitioning from one state to another. These probabilities are known as transition probabilities and are typically expressed in a matrix form.The key property of a Markov chain is that the probability of moving to the next state depends only on the current state and not on how the system arrived in that state (this is known as the Markov property).
+
+# Manufacturing Application
+
+Imagine a machine that can be in one of three states: Operating (O), Idle (I), or Under Maintenance (M). The machine transitions between these states from day to day.
+For example, if the machine is Operating on a given day, there might be a 90% chance it will be Operating the next day, a 5% chance it will go Idle, and a 5% chance it will require Maintenance.
+The transition matrix would look something like this (rows are current states, columns are next states):
+```{r}
+# Define the transition matrix
+P <- matrix(c(0.9, 0.05, 0.05,
+              0.1, 0.8, 0.1,
+              0.0, 0.0, 1.0), nrow = 3, byrow = TRUE)
+
+# Define the initial state (assuming the machine starts in the Operating state)
+state <- c(1, 0, 0)  # The machine is in the 'Operating' state at the start
+
+# Define the number of days to simulate
+n_days <- 10
+
+# Simulation of Markov chain over n days
+for (i in 1:n_days) {
+  state <- as.numeric(state %*% P)
+  cat(sprintf("Day %d: Operating = %.2f, Idle = %.2f, Maintenance = %.2f\n", 
+              i, state[1], state[2], state[3]))
+}
+
+```
+Day 1: We start with the machine in the Operating state with a high probability (0.90). There's a small chance that the machine will either be Idle or need Maintenance the next day (each with a probability of 0.05).
+
+Subsequent Days: With each passing day, the model predicts a steady decrease in the probability of the machine operating and a gradual increase in the probability of it being Idle or in Maintenance. This trend continues due to the nature of the transition probabilities, which suggest that over time, the machine is more likely to move away from the Operating state.
+
+Day 10: By the tenth day, the probability of the machine Operating has almost halved to 0.42, while the probabilities of being Idle or needing Maintenance have nearly reached parity with the Operating state, at 0.13 and 0.45, respectively.
+
+The trends observed in the output reflect the underlying transition matrix used in the Markov chain model, which dictates how the machine transitions between states. The model suggests that as time goes on, the likelihood of the machine requiring maintenance increases, which is expected in a real-world scenario as wear and tear take their toll.
+
+For a maintenance team, such a model could inform decisions about when preventative maintenance might be most effectively scheduled to minimize downtime. For operations managers, it offers insights into the expected availability of machinery, which is crucial for planning production schedules.
+
+## irrigation circles
+
+```{r}
+# Given rotation times data
+rotation_times <- c(
+  21.80086, 23.74087, 24.6675, 22.1376, 21.4186,
+  23.80423, 23.11184, 24.23174, 24.826, 21.44181,
+  22.09314, 22.96205, 22.27362, 23.23669, 22.05037,
+  21.8075, 22.5501, 24.55148, 23.21969, 24.36872,
+  24.56083, 23.8828, 21.84536, 21.90287, 21.55993,
+  22.91966, 22.74965, 24.86386, 21.56766, 24.81992,
+  22.77892, 21.23745, 22.1006, 21.12459, 21.05793
+)
+
+# Convert to data frame
+df <- data.frame(Rotation_Time = rotation_times)
+
+# Constants
+arm_length <- 1320  # Length of the arm in feet
+
+# Calculate rotation speed in feet per hour
+df$Rotation_Speed <- 2* pi * arm_length / df$Rotation_Time
+
+# Calculate mean and standard deviation of the rotation speeds
+mean_speed <- mean(df$Rotation_Speed)
+std_speed <- sd(df$Rotation_Speed)  # By default, R uses ddof = 1 for sample standard deviation
+
+# Calculate the 90% confidence interval for the rotation speed
+# The 't' distribution is used because we presumably have a sample, not the entire population
+confidence_level <- 0.90
+degrees_of_freedom <- length(df$Rotation_Speed) - 1
+t_critical <- qt((1 + confidence_level) / 2, degrees_of_freedom)
+
+margin_of_error <- t_critical * (std_speed / sqrt(length(df$Rotation_Speed)))
+
+lower_bound <- mean_speed - margin_of_error
+upper_bound <- mean_speed + margin_of_error
+
+# Output the results
+cat(sprintf('Mean Rotation Speed: %.2f feet per hour\n', mean_speed))
+cat(sprintf('Standard Deviation: %.2f feet per hour\n', std_speed))
+cat(sprintf('90%% Confidence Interval: (%.2f, %.2f) feet per hour\n', lower_bound, upper_bound))
+
+```
+
+
+For both farmers and data scientists, the analysis of our center pivot irrigation system's rotation reveals that, on average, the arm covers about 364.20 feet per hour, with a typical fluctuation of 19 feet per hour. More precisely, our calculations—using methods agreed upon in statistics—suggest with 90% certainty that the arm's true average speed lies between 358.67 and 369.72 feet per hour. it's a tool that helps ensure that crops receive a consistent amount of water and helps farmers and scientists alike make informed decisions about the maintenance and efficiency of agricultural operations.
